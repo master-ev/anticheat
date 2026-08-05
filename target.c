@@ -14,6 +14,8 @@ int main() {
     while (1) {
         enemy_x = (enemy_x + 1) % 100;
         enemy_visible = (tick % 5 == 0);
+        if (ammo > 0)
+            ammo = ammo - 1;
         printf("tick %d | health: %d | ammo: %d | enemy_x: %d | visible: %d\n", tick, health, ammo, enemy_x, enemy_visible);
         tick = tick + 1;
         sleep(1);

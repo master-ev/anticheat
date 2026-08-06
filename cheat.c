@@ -8,6 +8,8 @@
 #define AMMO_ADDRESS 0x40404c
 #define ENEMY_X_ADDRESS 0x404050
 #define ENEMY_VISIBLE_ADDRESS 0x404058
+#define PLAYER_AIM_ADDRESS 0x40405c
+#define HIT_ADDRESS 0x404060
 
 int read_int(int fd, long address) {
     int value = -1;
@@ -29,7 +31,7 @@ int write_int(int fd, long address, int value) {
 int main (int argc, char *argv[]) {
     if (argc < 3) {
         printf ("Usage: %s <target_pid> <command>\n", argv[0]);
-        printf("Commands: read | godmode | freezeammo\n");
+        printf("Commands: read | godmode | freezeammo | wallhack | aimbot\n");
         return 1;
     }
     int pid = atoi (argv[1]);
@@ -51,6 +53,19 @@ int main (int argc, char *argv[]) {
         printf("Freezing ammo at 999.\n");
         while (1) {
             write_int(fd, AMMO_ADDRESS, 999);
+            usleep(10000);
+        }
+    } else if (strcmp(command, "wallhack") == 0) {
+        printf("Forcing enemy always visible.\n");
+        while (1) {
+            write_int(fd, ENEMY_VISIBLE_ADDRESS, 1);
+            usleep(10000);
+        }
+    } else if(strcmp(command, "aimbot") == 0) {
+        printf("Aimbot on.\n");
+        while (1) {
+            int enemy = read_int(fd, ENEMY_X_ADDRESS);
+            write_int(fd, PLAYER_AIM_ADDRESS, enemy);
             usleep(10000);
         }
     } else {

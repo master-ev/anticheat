@@ -28,6 +28,25 @@ int debugger_via_status(void) {
     return tracer_pid != 0;
 }
 
+int injection_detected(void) {
+    FILE *f = fopen("/proc/self/maps", "r");
+    if (f == NULL)
+        return 0;
+    char line[512];
+    int found = 0;
+    while (fgets(line, sizeof(line), f) != NULL) {
+        if (strstr(line, ".so") == NULL)
+            continue;
+        int is_system = strstr(line, "/usr/") != NULL || strstr(line, "/lib/") != NULL;
+        if (!is_system) {
+            found = 1;
+            break;
+        }
+    }
+    fclose(f);
+    return found;
+}
+
 void log_detection(const char *what) {
     FILE *f = fopen("anticheat.log", "a");
     if (f == NULL)
@@ -68,10 +87,10 @@ int main() {
     int tick = 0;
     health_shadow = seal(health);
     ammo_shadow = seal(ammo);
-    if (debugger_via_ptrace()) {
-         printf(">>> DEBUGGER DETECTED at startup! <<<\n");
-         log_detection("debugger attached (ptrace)");
-    }
+    // if (debugger_via_ptrace()) {
+    //      printf(">>> DEBUGGER DETECTED at startup! <<<\n");
+    //      log_detection("debugger attached (ptrace)");
+    // }
     while (1) {
         enemy_x = (enemy_x + 1) % 100;
         enemy_visible = (tick % 5 == 0);
@@ -90,6 +109,10 @@ int main() {
         if (debugger_via_status()) {
             printf(">>> DEBUGGER DETECTED: someone is tracing! <<<\n");
             log_detection("debugger attached (TracerPid)");
+        }
+        if (injection_detected()) {
+            printf(">>> INJECTION DETECTED: an unknown library is loaded! <<<\n");
+            log_detection("injected library in memory maps");
         }
         printf("tick %d | health: %d | ammo: %d | enemy_x: %d | visible: %d | aim: %d | hit: %d\n", tick, health, ammo, enemy_x, enemy_visible, player_aim, hit);
         tick = tick + 1;

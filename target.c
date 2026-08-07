@@ -1,6 +1,32 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/ptrace.h>
+#include <string.h>
+#include <stdlib.h>
+
+int debugger_via_ptrace(void) {
+    if (ptrace(PTRACE_TRACEME, 0, 0, 0) == -1)
+        return 1; // traced
+    ptrace(PTRACE_DETACH, 0, 0, 0);
+    return 0;
+}
+
+int debugger_via_status(void) {
+    FILE *f = fopen("/proc/self/status", "r");
+    if (f == NULL)
+        return 0;
+    char line[256];
+    int tracer_pid = 0;
+    while (fgets(line, sizeof(line), f) != NULL) {
+        if (strncmp(line, "TracerPid:", 10) == 0) {
+            tracer_pid = atoi(line + 10);
+            break;
+        }
+    }
+    fclose(f);
+    return tracer_pid != 0;
+}
 
 void log_detection(const char *what) {
     FILE *f = fopen("anticheat.log", "a");
@@ -42,6 +68,10 @@ int main() {
     int tick = 0;
     health_shadow = seal(health);
     ammo_shadow = seal(ammo);
+    if (debugger_via_ptrace()) {
+         printf(">>> DEBUGGER DETECTED at startup! <<<\n");
+         log_detection("debugger attached (ptrace)");
+    }
     while (1) {
         enemy_x = (enemy_x + 1) % 100;
         enemy_visible = (tick % 5 == 0);
@@ -57,6 +87,10 @@ int main() {
         }
         if (is_tampered(ammo, ammo_shadow))
             printf(">>> CHEAT DETECTED: ammo was modified! <<<\n");
+        if (debugger_via_status()) {
+            printf(">>> DEBUGGER DETECTED: someone is tracing! <<<\n");
+            log_detection("debugger attached (TracerPid)");
+        }
         printf("tick %d | health: %d | ammo: %d | enemy_x: %d | visible: %d | aim: %d | hit: %d\n", tick, health, ammo, enemy_x, enemy_visible, player_aim, hit);
         tick = tick + 1;
         sleep(1);

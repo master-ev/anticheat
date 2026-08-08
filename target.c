@@ -103,9 +103,19 @@ int main() {
     //      log_detection("debugger attached (ptrace)");
     // }
     code_checksum_reference = checksum((unsigned char *)seal, (unsigned char *)unseal);
+    struct timespec last_time;
+    clock_gettime(CLOCK_MONOTONIC, &last_time);
     while (1) {
         enemy_x = (enemy_x + 1) % 100;
         enemy_visible = (tick % 5 == 0);
+        struct timespec now_time;
+        clock_gettime(CLOCK_MONOTONIC, &now_time);
+        double elapsed = (now_time.tv_sec - last_time.tv_sec) + (now_time.tv_nsec - last_time.tv_nsec) / 1e9;
+        last_time = now_time;
+        if (tick > 0 && elapsed < 0.5) {
+            printf(">>> SPEDHACK DETECTED: tick came too fast (%.2fs) <<<\n", elapsed);
+            log_detection("speedhack");
+        }
         if (ammo > 0) {
             ammo = ammo - 1;
             ammo_shadow = seal(ammo);

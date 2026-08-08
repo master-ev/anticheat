@@ -10,6 +10,7 @@
 #define ENEMY_VISIBLE_ADDRESS 0x404090
 #define PLAYER_AIM_ADDRESS 0x404094
 #define HIT_ADDRESS 0x404098
+#define SEAL_ADDRESS 0x401614
 
 int read_int(int fd, long address) {
     int value = -1;
@@ -31,11 +32,11 @@ int write_int(int fd, long address, int value) {
 int main (int argc, char *argv[]) {
     if (argc < 3) {
         printf ("Usage: %s <target_pid> <command>\n", argv[0]);
-        printf("Commands: read | godmode | freezeammo | wallhack | aimbot\n");
+        printf("Commands: read | godmode | freezeammo | wallhack | aimbot | patch\n");
         return 1;
     }
     int pid = atoi (argv[1]);
-    char * command = argv[2];
+    char *command = argv[2];
     char memory_path[64];
     snprintf (memory_path, sizeof(memory_path), "/proc/%d/mem", pid);
     int fd = open (memory_path, O_RDWR);
@@ -68,6 +69,14 @@ int main (int argc, char *argv[]) {
             write_int(fd, PLAYER_AIM_ADDRESS, enemy);
             usleep(10000);
         }
+    } else if (strcmp(command, "patch") == 0) {
+        unsigned char nops[4] = {0x90, 0x90, 0x90, 0x90};
+        if (lseek(fd, SEAL_ADDRESS, SEEK_SET) == -1)
+            perror("lseek");
+        else if (write(fd, nops, sizeof(nops)) != sizeof(nops))
+            perror("write");
+        else
+            printf("Code modified.\n");
     } else {
         printf("Unknown command: %s\n", command);
     }

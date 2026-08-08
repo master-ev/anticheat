@@ -5,6 +5,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+unsigned int code_checksum_reference;
+
 int debugger_via_ptrace(void) {
     if (ptrace(PTRACE_TRACEME, 0, 0, 0) == -1)
         return 1; // traced
@@ -73,6 +75,15 @@ int is_tampered(int value, unsigned int shadow) {
     return seal(value) != shadow;
 }
 
+unsigned int checksum(unsigned char *start, unsigned char *end) {
+    unsigned int sum = 0;
+    for (unsigned char *p = start; p < end; p++) {
+        sum = sum + *p;
+        sum = (sum << 1) | (sum >> 31);
+    }
+    return sum;
+}
+
 // values that a cheater would want to attack
 int health = 100;
 int ammo = 30;
@@ -91,6 +102,7 @@ int main() {
     //      printf(">>> DEBUGGER DETECTED at startup! <<<\n");
     //      log_detection("debugger attached (ptrace)");
     // }
+    code_checksum_reference = checksum((unsigned char *)seal, (unsigned char *)unseal);
     while (1) {
         enemy_x = (enemy_x + 1) % 100;
         enemy_visible = (tick % 5 == 0);
@@ -113,6 +125,11 @@ int main() {
         if (injection_detected()) {
             printf(">>> INJECTION DETECTED: an unknown library is loaded! <<<\n");
             log_detection("injected library in memory maps");
+        }
+        unsigned int current = checksum((unsigned char *)seal, (unsigned char *)unseal);
+        if (current != code_checksum_reference) {
+            printf(">>> CODE TAMPERING DETECTED: seal() was modified! <<<\n");
+            log_detection("code section modified");
         }
         printf("tick %d | health: %d | ammo: %d | enemy_x: %d | visible: %d | aim: %d | hit: %d\n", tick, health, ammo, enemy_x, enemy_visible, player_aim, hit);
         tick = tick + 1;

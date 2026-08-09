@@ -30,6 +30,17 @@ int debugger_via_status(void) {
     return tracer_pid != 0;
 }
 
+const char *allowed_libs[] = {"libc.so", "libc-", "ld-linux", "ld.so", "libm.so", "libdl.so", "libpthread",};
+int allowed_count = 7;
+
+int is_allowed_lib(const char *line) {
+    for (int i = 0; i < allowed_count; i++) {
+        if (strstr(line, allowed_libs[i]) != NULL)
+            return 1;
+    }
+    return 0;
+}
+
 int injection_detected(void) {
     FILE *f = fopen("/proc/self/maps", "r");
     if (f == NULL)
@@ -39,8 +50,7 @@ int injection_detected(void) {
     while (fgets(line, sizeof(line), f) != NULL) {
         if (strstr(line, ".so") == NULL)
             continue;
-        int is_system = strstr(line, "/usr/") != NULL || strstr(line, "/lib/") != NULL;
-        if (!is_system) {
+        if (!is_allowed_lib(line)) {
             found = 1;
             break;
         }

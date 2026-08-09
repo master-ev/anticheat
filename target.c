@@ -98,10 +98,10 @@ int main() {
     int tick = 0;
     health_shadow = seal(health);
     ammo_shadow = seal(ammo);
-    // if (debugger_via_ptrace()) {
-    //      printf(">>> DEBUGGER DETECTED at startup! <<<\n");
-    //      log_detection("debugger attached (ptrace)");
-    // }
+    if (debugger_via_ptrace()) {
+          printf(">>> DEBUGGER DETECTED at startup! <<<\n");
+          log_detection("debugger attached (ptrace)");
+    }
     code_checksum_reference = checksum((unsigned char *)seal, (unsigned char *)unseal);
     struct timespec last_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
@@ -128,10 +128,10 @@ int main() {
         }
         if (is_tampered(ammo, ammo_shadow))
             printf(">>> CHEAT DETECTED: ammo was modified! <<<\n");
-        if (debugger_via_status()) {
-            printf(">>> DEBUGGER DETECTED: someone is tracing! <<<\n");
-            log_detection("debugger attached (TracerPid)");
-        }
+        // if (debugger_via_status()) {
+        //     printf(">>> DEBUGGER DETECTED: someone is tracing! <<<\n");
+        //     log_detection("debugger attached (TracerPid)");
+        // }
         if (injection_detected()) {
             printf(">>> INJECTION DETECTED: an unknown library is loaded! <<<\n");
             log_detection("injected library in memory maps");

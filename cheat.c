@@ -4,13 +4,13 @@
 #include <unistd.h>
 #include <string.h>
 
-#define HEALTH_ADDRESS 0x404078
-#define AMMO_ADDRESS 0x40407c
-#define ENEMY_X_ADDRESS 0x404080
-#define ENEMY_VISIBLE_ADDRESS 0x404090
-#define PLAYER_AIM_ADDRESS 0x404094
-#define HIT_ADDRESS 0x404098
-#define SEAL_ADDRESS 0x4016ab
+#define HEALTH_ADDRESS 0x4040d4
+#define AMMO_ADDRESS 0x4040d8
+#define ENEMY_X_ADDRESS 0x4040dc
+#define ENEMY_VISIBLE_ADDRESS 0x4041c8
+#define PLAYER_AIM_ADDRESS 0x4041cc
+#define HIT_ADDRESS 0x4041d0
+#define SEAL_ADDRESS 0x401819
 
 int read_int(int fd, long address) {
     int value = -1;

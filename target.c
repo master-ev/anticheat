@@ -6,6 +6,18 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#define CHEAT_MEMORY 0
+#define CHEAT_DEBUGGER 1
+#define CHEAT_INJECTION 2
+#define CHEAT_CODE 3
+#define CHEAT_TYPES 4
+
+int detection_counts[CHEAT_TYPES] = {0, 0, 0, 0};
+int total_detections = 0;
+#define KICK_THRESHOLD 10
+
+const char *cheat_names[CHEAT_TYPES] = {"memory tampering", "debugger", "code injection", "code patching",};
+
 #define SEAL_SIZE ((unsigned char *)unseal - (unsigned char *)seal)
 #define SEAL_CAPACITY 64
 
@@ -74,6 +86,23 @@ void log_detection(const char *what) {
     fclose(f);
 }
 
+void report(int cheat_type) {
+    detection_counts[cheat_type]++;
+    total_detections++;
+    const char *name = cheat_names[cheat_type];
+    if (total_detections < KICK_THRESHOLD)
+        printf(">>> WARNING: %s detected (%d total) <<<\n", name, total_detections);
+    else
+        printf(">>> KICK: too many detections (%d) <<<\n", total_detections);
+    log_detection(name);
+    if (total_detections >= KICK_THRESHOLD) {
+        printf("Player kicked after %d detections. Summary:\n", total_detections);
+        for (int i = 0; i < CHEAT_TYPES; i++)
+            printf(" %s: %d\n", cheat_names[i], detection_counts[i]);
+        exit(1);
+    }
+}
+
 #define SHADOW_KEY 0xA5A5A5A5
 unsigned int health_shadow;
 unsigned int ammo_shadow;
@@ -125,10 +154,8 @@ int main() {
     int tick = 0;
     health_shadow = seal(health);
     ammo_shadow = seal(ammo);
-    if (debugger_via_ptrace()) {
-          printf(">>> DEBUGGER DETECTED at startup! <<<\n");
-          log_detection("debugger attached (ptrace)");
-    }
+    if (debugger_via_ptrace())
+        report(CHEAT_DEBUGGER);
     code_checksum_reference = checksum((unsigned char *)seal, (unsigned char *)unseal);
     unsigned long seal_size = (unsigned char *)unseal - (unsigned char *)seal;
     memcpy(seal_original, (unsigned char *)seal, seal_size);
@@ -151,24 +178,20 @@ int main() {
         }
         hit = (player_aim == enemy_x);
         if (is_tampered(health, health_shadow)) {
-            printf(">>> CHEAT DETECTED: health was modified! Restoring. <<<\n");
-            log_detection("health modified externally");
+            report(CHEAT_MEMORY);
             health = unseal(health_shadow);
         }
         if (is_tampered(ammo, ammo_shadow))
-            printf(">>> CHEAT DETECTED: ammo was modified! <<<\n");
+            report(CHEAT_MEMORY);
         // if (debugger_via_status()) {
         //     printf(">>> DEBUGGER DETECTED: someone is tracing! <<<\n");
         //     log_detection("debugger attached (TracerPid)");
         // }
-        if (injection_detected()) {
-            printf(">>> INJECTION DETECTED: an unknown library is loaded! <<<\n");
-            log_detection("injected library in memory maps");
-        }
+        if (injection_detected())
+            report(CHEAT_INJECTION);
         unsigned int current = checksum((unsigned char *)seal, (unsigned char *)unseal);
         if (current != code_checksum_reference) {
-            printf(">>> CODE TAMPERING DETECTED: repairing seal() <<<\n");
-            log_detection("code section modified - auto repairing");
+            report(CHEAT_CODE);
             repair_code();
         }
         printf("tick %d | health: %d | ammo: %d | enemy_x: %d | visible: %d | aim: %d | hit: %d\n", tick, health, ammo, enemy_x, enemy_visible, player_aim, hit);

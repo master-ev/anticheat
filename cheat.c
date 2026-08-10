@@ -10,7 +10,7 @@
 #define ENEMY_VISIBLE_ADDRESS 0x404090
 #define PLAYER_AIM_ADDRESS 0x404094
 #define HIT_ADDRESS 0x404098
-#define SEAL_ADDRESS 0x401614
+#define SEAL_ADDRESS 0x4016ab
 
 int read_int(int fd, long address) {
     int value = -1;

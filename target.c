@@ -4,8 +4,13 @@
 #include <sys/ptrace.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/mman.h>
+
+#define SEAL_SIZE ((unsigned char *)unseal - (unsigned char *)seal)
+#define SEAL_CAPACITY 64
 
 unsigned int code_checksum_reference;
+unsigned char seal_original[SEAL_CAPACITY];
 
 int debugger_via_ptrace(void) {
     if (ptrace(PTRACE_TRACEME, 0, 0, 0) == -1)
@@ -94,6 +99,18 @@ unsigned int checksum(unsigned char *start, unsigned char *end) {
     return sum;
 }
 
+void repair_code(void) {
+    void *address = (void *)seal;
+    unsigned long seal_size = (unsigned char *)unseal - (unsigned char *)seal;
+    long page_size = sysconf(_SC_PAGESIZE);
+    void *page = (void *)((long)address & ~(page_size - 1));
+    if (mprotect(page, page_size, PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
+        return;
+    // rewrite the original bytes
+    memcpy(address, seal_original, seal_size);
+    mprotect(page, page_size, PROT_READ | PROT_EXEC);
+}
+
 // values that a cheater would want to attack
 int health = 100;
 int ammo = 30;
@@ -113,6 +130,8 @@ int main() {
           log_detection("debugger attached (ptrace)");
     }
     code_checksum_reference = checksum((unsigned char *)seal, (unsigned char *)unseal);
+    unsigned long seal_size = (unsigned char *)unseal - (unsigned char *)seal;
+    memcpy(seal_original, (unsigned char *)seal, seal_size);
     struct timespec last_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
     while (1) {
@@ -148,8 +167,9 @@ int main() {
         }
         unsigned int current = checksum((unsigned char *)seal, (unsigned char *)unseal);
         if (current != code_checksum_reference) {
-            printf(">>> CODE TAMPERING DETECTED: seal() was modified! <<<\n");
-            log_detection("code section modified");
+            printf(">>> CODE TAMPERING DETECTED: repairing seal() <<<\n");
+            log_detection("code section modified - auto repairing");
+            repair_code();
         }
         printf("tick %d | health: %d | ammo: %d | enemy_x: %d | visible: %d | aim: %d | hit: %d\n", tick, health, ammo, enemy_x, enemy_visible, player_aim, hit);
         tick = tick + 1;
